@@ -1,6 +1,6 @@
 # Status
 
-Generated 2026-11-22 00:52 UTC from the releases, the field updater, the OpenWrt pull
+Generated 2026-11-22 21:17 UTC from the releases, the field updater, the OpenWrt pull
 requests and the port's bug ledger. Every build here is OpenWrt main
 (Linux 6.18) with this port's patches (102 of them in build 159).
 
@@ -14,19 +14,20 @@ requests and the port's bug ledger. Every build here is OpenWrt main
 | Field installs proven on real units | `██████████` 100% | 7 of 7: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
 | Device support submitted to OpenWrt | `█████████░` 86% | 6 of 7 pull requests; the C-130 is another author's device |
 | Device support merged into OpenWrt | `░░░░░░░░░░` 0% | 0 of 7; the pull requests are waiting for review |
-| Known issues resolved | `███████░░░` 71% | 148 of 207 in the port's bug ledger ([below](#known-issues)) |
+| Known issues resolved | `███████░░░` 70% | 151 of 217 in the port's bug ledger ([below](#known-issues)) |
 
 ## Published builds
 
-The build number is the middle of the tag: `v2026.10.17.1-212-gf99029c` is build **212**, the
-212th port commit after release v2026.10.17.1, from port commit `f99029c`.
+The build number is the middle of the tag: `v2026.10.17.1-219-g0f0ca5c` is build **219**, the
+219th port commit after release v2026.10.17.1, from port commit `0f0ca5c`.
 From build 57 on, a unit names its build: `grep DISTRIB_DESCRIPTION
 /etc/openwrt_release` ends in `(arista <tag>)`, as does LuCI's firmware version.
 
 | Build | Released (UTC) | Channel | Models | What it brought |
 |---|---|---|---|---|
-| **[212](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-212-gf99029c)** | 2026-11-22 | testing | C-130 | Arista C-130: the LEDs steady, as Arista's firmware has them (none blinks with traffic), USB storage in the image. |
-| [208](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-208-ga314f1b) | 2026-11-21 | testing, replaced by 212 | C-130 | A new model, the Arista C-130 (IPQ8068; Tomasz Maciej Nowak's OpenWrt device, carried unchanged), C-130 images only: all three radios, airscan and dfs-look on its scan radio, installs over the network. |
+| **[219](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-219-g0f0ca5c)** | 2026-11-22 | testing | C-130 | Arista C-130: Qualcomm's newest public firmware on all three radios (512 clients a radio; the scan radio hears every network around), other APs' beacons at the level they are heard, Arista's PoE power policy. |
+| [212](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-212-gf99029c) | 2026-11-22 | testing, replaced by 219 | C-130 | Arista C-130: the LEDs steady, as Arista's firmware has them (none blinks with traffic), USB storage in the image. |
+| [208](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-208-ga314f1b) | 2026-11-21 | testing, replaced by 219 | C-130 | A new model, the Arista C-130 (IPQ8068; Tomasz Maciej Nowak's OpenWrt device, carried unchanged), C-130 images only: all three radios, airscan and dfs-look on its scan radio, installs over the network. |
 | **[159](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-159-ge6a703e)** | 2026-11-20 | testing | C-230, C-260, C-360, W-318, W-118, C-200 | Release candidate for the next stable release (two-week soak to 2026-11-29). A spare radio no longer resets the country on every Wi-Fi reload; no kernel warning when reading client rates on the 802.11ax radios. |
 | [157](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-157-g0500cfe) | 2026-11-10 | testing, replaced by 159 | C-230, C-260, C-360, W-318, W-118, C-200 | uploads use all the CPU cores; fast roams log no false error |
 | [155](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-155-g9248ea3) | 2026-11-09 | testing, replaced by 159 | C-230, C-260, C-360, W-318, W-118, C-200 | radios recover from firmware crashes; 6 GHz on all four chains; DHCP behind duplicating switches; OpenWrt main of 2026-11-08 |
@@ -59,7 +60,7 @@ From build 57 on, a unit names its build: `grep DISTRIB_DESCRIPTION
 | W-318 | qualcommax/ipq60xx | 42 | 159 | install and revert, proven | [#25947](https://github.com/openwrt/openwrt/pull/25947) (open) |
 | W-118 | ipq40xx/generic | none yet | 159 | install and revert, proven | [#26028](https://github.com/openwrt/openwrt/pull/26028) (open) |
 | C-200 | qualcommax/ipq60xx | none yet | 159 | install proven; revert code-ready | [#26410](https://github.com/openwrt/openwrt/pull/26410) (open) |
-| C-130 | ipq806x/generic | none yet | 212 | install proven; revert code-ready | Tomasz Maciej Nowak's device, not yet in OpenWrt |
+| C-130 | ipq806x/generic | none yet | 219 | install proven; revert code-ready | Tomasz Maciej Nowak's device, not yet in OpenWrt |
 
 ## The field updater: `arista-field.py`
 
@@ -71,7 +72,7 @@ then installs OpenWrt or puts Arista's firmware back.
   AP's model. Today that is build 42; a model with no stable build yet gets
   its newest testing build instead (the W-118, C-200 and C-130).
 - **Testing channel** (`--channel testing`): pre-releases too. Today that is
-  build 159 (build 212 for the C-130).
+  build 159 (build 219 for the C-130).
 - It boots the FIT configuration it finds in the image rather than a fixed
   name, so a model whose configuration changed between OpenWrt trees (the
   C-360: `config@1` on 25.12, `config@hk09` on main) boots either.
@@ -99,12 +100,12 @@ anything Arista worked around instead of fixing.
 
 | | Count |
 |---|---:|
-| Fixed in published images | 104 |
-| Fixed in the port, in the next release | 3 |
+| Fixed in published images | 107 |
+| Fixed in the port, in the next release | 5 |
 | Closed: a hardware or firmware limit, by design, or not this port's to fix | 44 |
-| Open: seen on OpenWrt, or being worked on | 49 |
-| Open: suspected only, from Arista's own workarounds and public release notes, not yet seen on OpenWrt | 7 |
-| **Total** | **207** |
+| Open: seen on OpenWrt, or being worked on | 52 |
+| Open: suspected only, from Arista's own workarounds and public release notes, not yet seen on OpenWrt | 9 |
+| **Total** | **217** |
 
 Limits worth knowing before you install:
 
