@@ -96,6 +96,11 @@ the log has.
    the installer. `bootcmd` keeps the AP's own boot as its last step: if the
    fetch fails it restores `bootcmd`/`bootargs` and resets, so the AP always ends
    up on its own firmware rather than looping.
+   Started from an AP that already runs OpenWrt, the boot it restores is that
+   AP's own, kept word for word in a third variable, `owrt_home`: a failed fetch
+   then starts OpenWrt again, not the copy of Arista in the other slot. On the
+   C-130 the fetch is preceded by `ethspeed 5 autoneg`, which redoes its network
+   port's setup (that boot loader sometimes sets the port up wrong at a restart).
 2. **The installer's own writes**, only after its checks pass. On the NAND
    models (C-230/C-260/C-360): one environment write (`bootcmd`, `pri=1`), then
    NAND slot 0. On the eMMC model (C-460): one environment write (the boot

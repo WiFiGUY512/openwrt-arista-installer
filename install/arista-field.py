@@ -1311,6 +1311,16 @@ MODELS = {
         "net_tries": 3,
         "net_settle": 0,
         "retry_sleep": 0,
+        # This boot loader takes its network port's speed once, in its first two
+        # seconds; the PHY is reset on every restart, and when the link to the
+        # switch is not up in time the port is set up for 10 Mb/s and then passes
+        # nothing: link up, no frame out (2 of 8 restarts from OpenWrt on a unit,
+        # 2026-11-21; once after a power cut too).  Its own 'reset' does not
+        # clear it.  'ethspeed 5 autoneg' redoes the port's setup (5 is this
+        # boot loader's number for that PHY): at the prompt it brought back 4 of
+        # 4 boots that could not ping, and did no harm on 7 of 7 that could
+        # (2026-11-22).  It takes about 3 s and is sent once, before the fetch.
+        "net_prep": "ethspeed 5 autoneg",
         # The install is the W-118's shape: one fw_setenv, then OpenWrt's own
         # sysupgrade -n.  OpenWrt takes Arista's slot 0 (rootfs + opt, 64 MiB,
         # as one UBI); slot 1 (rootfs2 + opt2) and both kernels in NOR are never
@@ -2666,7 +2676,7 @@ def ap_address(a_host, pc_ip):
 def netboot_env(pc_ip, ap_ip, itb_name, cfg, load="0x60000000",
                 stock_bootcmd="run ubootscript", fdt_high="0x4A3E0000",
                 net_settle=5, net_tries=2, retry_sleep=3, netretry="no",
-                use_helper=False):
+                use_helper=False, home=None, net_prep=None):
     """The two variables the netboot needs, as (name, value) pairs.
 
     They are kept apart because the injected shell only lives about a minute and
@@ -2701,7 +2711,24 @@ def netboot_env(pc_ip, ap_ip, itb_name, cfg, load="0x60000000",
 
     stock_bootcmd is the model's own boot command (the C-460's carries a
     trailing ';'), and fdt_high=None leaves the model's own value alone (the
-    C-460's 0x48500000 is what its RAM boots use)."""
+    C-460's 0x48500000 is what its RAM boots use).
+
+    home is for a netboot that starts from OpenWrt: the boot command the AP
+    has now.  What owrt_clear saves is then "run owrt_home", with that command
+    kept word for word in owrt_home, so a failed fetch starts OpenWrt again
+    and not the copy of Arista in the other slot (which keeps its own settings
+    and has refused the factory login on a W-318 and a C-130).  The command
+    is never pasted into a U-Boot line: owrt_home is written from Linux as
+    plain data, and owrt_clear keeps the one form every model has run,
+    setenv bootcmd "run <name>"; saveenv.  owrt_home comes first in the list,
+    so it is in place before anything refers to it.
+
+    net_prep is a boot-loader command a model needs before its network port
+    can be trusted (the C-130's 'ethspeed 5 autoneg').  It runs once, after
+    the addresses are set and before the first fetch, whatever the AP was
+    running: nothing is saved by it."""
+    if home:
+        stock_bootcmd = "run owrt_home"
     # A boot command that holds double quotes and ${...} of its own (the W-318's)
     # goes back inside single quotes, so U-Boot stores it as written instead of
     # expanding it when owrt_clear runs.
@@ -2715,7 +2742,10 @@ def netboot_env(pc_ip, ap_ip, itb_name, cfg, load="0x60000000",
             % (("setenv netretry %s; " % netretry) if netretry else "",
                ap_ip, ap_ip.rsplit(".", 1)[0] + ".1", pc_ip,
                ("setenv fdt_high %s; " % fdt_high) if fdt_high else ""))
-    out = [("owrt_clear", clear)]
+    if net_prep:
+        head += "%s; " % net_prep
+    out = [("owrt_home", home)] if home else []
+    out.append(("owrt_clear", clear))
     if use_helper:
         # Each fetch attempt is one short helper var; owrt_nb just runs it N times
         # after the settle, then resets.  This keeps every fw_setenv well under
@@ -3340,6 +3370,37 @@ def boot_installer_slot0(run, card, itb):
     time.sleep(30)
 
 
+def own_boot_command(shell, stock_bootcmd):
+    """What a network boot that starts from OpenWrt should fall back to.
+
+    Returns (how, text):
+      "write"   text is the AP's boot command, to keep in owrt_home;
+      "kept"    owrt_home already holds it (an earlier run's fetch failed and
+                the AP came back through it), text is what it holds;
+      "arista"  leave the fallback as Arista's own boot command; text says why,
+                or is empty where Arista's command is the one the AP has.
+    Reads only."""
+    leftover = r"\bowrt_(clear|nb|try)\b"
+    out, rc = m.ssh_exec(shell, "fw_printenv -n bootcmd 2>/dev/null", 30)
+    cur = out.rstrip("\r\n")
+    if rc != 0 or not cur.strip() or "\n" in cur or "\r" in cur:
+        return "arista", "this AP's boot command could not be read"
+    if cur.strip() == stock_bootcmd.strip():
+        return "arista", ""
+    if re.search(leftover, cur):
+        return "arista", "its boot command is a network boot left by an earlier run"
+    if cur.strip() == "run owrt_home":
+        out, rc = m.ssh_exec(shell, "fw_printenv -n owrt_home 2>/dev/null", 30)
+        kept = out.rstrip("\r\n")
+        if (rc == 0 and kept.strip() and "\n" not in kept and "\r" not in kept
+                and not re.search(leftover, kept) and not re.search(r"\bowrt_home\b", kept)):
+            return "kept", kept
+        return "arista", "its boot command runs owrt_home, which does not hold a boot command"
+    if re.search(r"\bowrt_home\b", cur):
+        return "arista", "its boot command already refers to owrt_home"
+    return "write", cur
+
+
 def boot_installer(run, card, pc_ip, ap_ip, itb, kind):
     """Two short environment writes, then reboot into the RAM installer."""
     global _REBOOTED
@@ -3359,12 +3420,22 @@ def boot_installer(run, card, pc_ip, ap_ip, itb, kind):
                    % (cfg, mdl["name"], mdl["fit_cfg"]))
         if not seen:
             m.note("could not read a configuration name out of the image; using %s" % cfg)
+    # From OpenWrt, a failed fetch must leave the AP starting OpenWrt again, so
+    # its own boot command is what owrt_clear puts back (see netboot_env).
+    own, own_text = ("arista", "")
+    if kind == "openwrt":
+        own, own_text = own_boot_command(run.shell, mdl.get("stock_bootcmd", "run ubootscript"))
     writes = netboot_env(pc_ip, ap_ip, short, cfg, mdl.get("load_addr", "0x60000000"),
                          mdl.get("stock_bootcmd", "run ubootscript"),
                          mdl.get("fdt_high", "0x4A3E0000"),
                          mdl.get("net_settle", 5), mdl.get("net_tries", 2),
                          mdl.get("retry_sleep", 3), mdl.get("netretry", "no"),
-                         mdl.get("net_helper", False))
+                         mdl.get("net_helper", False),
+                         home=own_text if own in ("write", "kept") else None,
+                         net_prep=mdl.get("net_prep"))
+    if own == "kept":
+        writes = [w for w in writes if w[0] != "owrt_home"]     # already there, word for word
+    run.netboot_fallback = "openwrt" if own in ("write", "kept") else "arista"
     run.tftp = Tftp({short: itb, itb_name: itb})     # serve before the AP asks
     m.say("TFTP serving %s as %s on UDP 69." % (itb_name, short))
     m.say("")
@@ -3372,8 +3443,18 @@ def boot_installer(run, card, pc_ip, ap_ip, itb, kind):
     for name, v in writes:
         m.say("  %s = %s" % (name, v))
     m.say("")
-    m.say("If the fetch fails, bootcmd puts Arista's own boot back and resets, so")
-    m.say("the AP ends up on its own firmware; running this again costs nothing.")
+    if run.netboot_fallback == "openwrt":
+        m.say("If the fetch fails, bootcmd puts this AP's own boot command back (it is")
+        m.say("kept in owrt_home) and resets, so the AP starts OpenWrt as it does now;")
+        m.say("running this again costs nothing.")
+        STEP["hint"] = ("The AP fetches the installer from this PC over TFTP (UDP 69): allow it through\n"
+                        "this PC's firewall.  The AP has gone back to OpenWrt, as it was; run the tool again.")
+    else:
+        m.say("If the fetch fails, bootcmd puts Arista's own boot back and resets, so")
+        m.say("the AP ends up on its own firmware; running this again costs nothing.")
+        if kind == "openwrt" and own_text:
+            m.note("%s, so a failed fetch leaves Arista's boot command in place: the AP "
+                   "would then start Arista's firmware from its other slot" % own_text)
     if not run.yes:
         m.say("(sensord is stopped while this shell is held: answer now.)")
         if ask("Type 'yes' to go ahead: ", "--yes").strip().lower() not in ("y", "yes"):
@@ -3405,8 +3486,19 @@ def boot_installer(run, card, pc_ip, ap_ip, itb, kind):
         m.say("")
         m.say("Writing the environment on OpenWrt, then rebooting.")
         for n, v in writes:
-            m.ssh_exec(run.shell, "fw_setenv %s '%s'" % (n, v.replace("'", "'\\''")), 30)
+            out, rc = m.ssh_exec(run.shell, "fw_setenv %s '%s'" % (n, v.replace("'", "'\\''")), 30)
+            m.LOG.write("\nENV WRITE %s: rc=%s %s\n" % (n, rc, out))
+            if rc != 0:
+                # bootcmd is the last of them, so the AP still starts as it did
+                m.die("writing %s failed (exit %s): %s\nThe boot command was not changed."
+                      % (n, rc, out[-300:]))
             run.env_writes.append(n)
+            if n == "owrt_home":
+                # the fallback is only as good as this copy: word for word, or stop
+                back, _ = m.ssh_exec(run.shell, "fw_printenv -n owrt_home 2>/dev/null", 30)
+                if back.rstrip("\r\n") != v:
+                    m.die("this AP's boot command did not read back as it was saved (owrt_home).\n"
+                          "The boot command was not changed.")
         out, _ = m.ssh_exec(run.shell, "fw_printenv owrt_nb | cut -c1-50", 30)
         m.say("  owrt_nb reads back: %s" % (out.strip()[:50] or "(nothing)"))
         _REBOOTED = True
@@ -3455,8 +3547,9 @@ def do_ramboot(run, a, card, kind, pc_ip, ap_ip):
         m.say("RAM boot: U-Boot will fetch this image over TFTP and run it from RAM.")
         m.say("  release/image: %s" % tag)
         m.say("  The eMMC is NOT touched.  The only writes are the U-Boot environment")
-        m.say("  variables the netboot needs, and they restore Arista's own boot before")
-        m.say("  the fetch -- so a power-cycle brings the unit back to its own firmware.")
+        m.say("  variables the netboot needs, and they put the boot command back before")
+        m.say("  the fetch (Arista's own; from OpenWrt, the one this AP has now) -- so a")
+        m.say("  power-cycle brings the unit back to what it runs now.")
     boot_installer(run, card, pc_ip, ap_ip, itb, kind)
     con, ip, board, root = wait_installer(a, (card.get("host") or ap_ip).rsplit(".", 1)[0],
                                           mac=card.get("mac"))
@@ -3477,8 +3570,13 @@ def do_ramboot(run, a, card, kind, pc_ip, ap_ip):
             m.say("  " + line.strip())
     m.tell("")
     m.tell("  Root filesystem is in RAM: nothing is installed.  SSH in as root (no")
-    m.tell("  password).  Power-cycle the AP to return it to Arista's firmware; a")
-    m.tell("  plain reboot does the same, because the saved bootcmd is Arista's own.")
+    if getattr(run, "netboot_fallback", "arista") == "openwrt":
+        m.tell("  password).  Power-cycle the AP to return it to the OpenWrt installed on")
+        m.tell("  it; a plain reboot does the same, because the saved bootcmd runs the")
+        m.tell("  boot command it had (owrt_home).")
+    else:
+        m.tell("  password).  Power-cycle the AP to return it to Arista's firmware; a")
+        m.tell("  plain reboot does the same, because the saved bootcmd is Arista's own.")
     if kexec:
         m.tell("  (Started by kexec: one CPU, no Wi-Fi, eMMC in PIO -- an installer, not")
         m.tell("  a full system; a normal boot of the installed image has everything.)")
@@ -4743,6 +4841,7 @@ class Run:
         self.installer = None
         self.tftp = None
         self.kexec_dir = None        # kexec module + tool for ram_boot "kexec" models
+        self.netboot_fallback = "arista"   # what a failed fetch leaves the AP starting
         self.work = None             # this run's folder (field-run-*)
 
 
