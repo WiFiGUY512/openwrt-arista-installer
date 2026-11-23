@@ -1347,6 +1347,80 @@ MODELS = {
                         "That copy keeps its own settings and may not take the login the other",
                         "one did; the AP's reset button brings back config / config."),
     },
+    "o105": {
+        "name": "O-105",
+        "target": "ipq40xx/generic",
+        "device": "arista_o-105",
+        # U-Boot 2012.07, as on the W-118: no LZMA, so the RAM installer is a
+        # zImage FIT, loaded at 0x84000000 and started with a bare bootm (one
+        # configuration), fdt_high left alone.
+        "initramfs": "initramfs-zImage.itb",
+        "fit_cfg": None,
+        "load_addr": "0x84000000",
+        "fdt_high": None,
+        # Its flash, as read on a unit on Arista 8.8.2-49.2 (2026-11-22): two
+        # 64 MiB NAND slots and fourteen NOR partitions adding up to 32 MiB.
+        # Slot 0 is "rootfs" on Arista's firmware and "ubi" on OpenWrt; slot 1
+        # is "rootfs2" and "arista_rootfs2".
+        "slot0": ("rootfs", "ubi"),
+        "slot1": ("rootfs2", "arista_rootfs2"),
+        "slot_size": 0x4000000,
+        "appsblenv": ("0:APPSBLENV", "0:appsblenv"),
+        "need_nor": ("0:HLOS1", "0:hlos1"),
+        "need_env": ("bootcmd", "ba0", "ba1", "ubootscript"),
+        "nor_total": 0x2000000,
+        # 8.8.2's CLI has no radartool ("Invalid command"); the upgrade wizard
+        # is the way in.  Arista's "offline mode" refuses the wizard: it sets in
+        # some 15 to 90 minutes after a start with its cloud out of reach, and a
+        # restart clears it for a while.
+        "root_order": ("upgrade",),
+        # The file that tells fw_setenv where the environment is names
+        # 0:DDRPARAMS in Arista's image on this model; Arista's start-up rewrites
+        # it to the environment's partition at every boot.  A write through the
+        # image's copy would land in the boot chain's memory setup, so the file
+        # is read, and has to name the environment's partition, before anything
+        # is written from Arista's firmware (verify_stock).
+        "env_config_check": True,
+        # This boot loader has no 'sleep' and no 'ethspeed', and a fetch right
+        # after it starts fails at once: the network link is not up yet.  A
+        # memory dump to the console is the wait (about 12 s): one try, then up
+        # to three more with the wait before each.  On a unit the second try
+        # fetched, 22 s after the reset, three times out of three (2026-11-22).
+        "net_helper": True,
+        "net_tries": 4,
+        "net_settle": 0,
+        "retry_sleep": 0,
+        "net_wait": "md.l 0x80000000 0x2000",
+        # The install is the C-200's shape: the boot command first, then slot 0
+        # formatted with factory.ubi and its volumes read back.  OpenWrt's own
+        # sysupgrade cannot be used for the first install: Arista's two volumes
+        # would stay in slot 0 and leave no room.  The variables are the ones a
+        # unit was installed with by hand (2026-11-22); bootargs has to be set,
+        # because Arista's saved ones name its own slot.  pri=1 makes Arista's
+        # own boot, the fallback, use slot 1.
+        "install_by": "ubiformat",
+        "install_env": (
+            ("owrt_args", "console=ttyMSM0,115200n8"),
+            ("owrt_boot", "setenv mtdids nand0=nand0 && setenv mtdparts mtdparts=nand0:64m(ubi) && "
+                          "ubi part ubi && ubi read 0x84000000 kernel && bootm 0x84000000"),
+            ("arista_boot", "setenv mtdids; setenv mtdparts; if test ${pri} = 0; then "
+                            "setenv bootargs ${ba0}; else setenv bootargs ${ba1}; fi; "
+                            "run ubootscript"),
+            ("bootcmd", "setenv bootargs ${owrt_args}; run owrt_boot; run arista_boot"),
+            ("pri", "1"),
+        ),
+        "pri_note": "Arista calls slot 0 its primary on this unit, so the system that runs now is "
+                    "the one the install replaces; the copy in slot 1 is what is kept.",
+        "unproven": "this tool has not installed an O-105 yet.  Its steps are the ones that "
+                    "installed a unit by hand, and the way back to Arista has not been run on one.",
+        # Back to Arista: its kept copy in slot 1, by the boot command alone.
+        "revert": "bootcmd",
+        "revert_env": (("pri", "1"),),
+        "revert_note": ("Arista's firmware starts again from its second slot, where the install",
+                        "left it.  OpenWrt stays in the first slot, no longer started.",
+                        "That copy keeps its own settings and may not take the login the other",
+                        "one did; the AP's reset button brings back config / config."),
+    },
     "c460": {
         "name": "C-460",
         "target": "qualcommbe/ipq95xx",
@@ -1758,6 +1832,12 @@ def _upgrade_wizard(pty, host, payload):
     first = pty.wait(r"(?:%s)|(?:%s)|(?:%s)" % (SERVER_PAT, SOURCE_ECHO_PAT, CONTINUE_PAT),
                      30, mark=mk)
     if not first:
+        if re.search(r"offline mode", pty.since(mk), re.I):
+            raise MethodFailed("Arista's firmware is in its offline mode and refuses 'upgrade', which "
+                "is the way in on this AP.  It goes into that mode some time after it starts\n"
+                "without reaching Arista's cloud, and a restart clears it for a while: restart the "
+                "AP (unplug it, or log in as config and type reboot), then run the tool again\n"
+                "within a few minutes of it answering.")
         raise MethodFailed("'upgrade' offered neither Continue?, a server prompt, nor a source "
             "line: offline mode, or a build this tool has not been read on.\n%s"
             % pty.since(mk).strip()[-600:])
@@ -2369,6 +2449,16 @@ def verify_stock(pty, card):
     elif nor_bytes != d["nor_total"]:
         problems.append("NOR partitions add up to %d bytes, expected %d"
                         % (nor_bytes, d["nor_total"]))
+    if d.get("env_config_check") and env:
+        cfg, _rc = pty.run("grep -v '^#' /etc/fw_env.config 2>/dev/null | head -1", 20)
+        named = (cfg.split() or [""])[0]
+        if named != "/dev/" + env["dev"]:
+            problems.append("its environment tools point at %s, not at the environment's partition "
+                            "(/dev/%s, %s), so a write would land in the wrong place.  Arista's "
+                            "firmware sets this when it starts: restart the AP and run the tool again"
+                            % (named or "nothing", env["dev"], env["name"]))
+        else:
+            m.say("  env tools  point at %s (%s)" % (named, env["name"]))
     env_text = pty.must("fw_printenv 2>&1", 30, "fw_printenv")
     card["env"] = env_text
     for v in d["need_env"]:
@@ -2676,7 +2766,7 @@ def ap_address(a_host, pc_ip):
 def netboot_env(pc_ip, ap_ip, itb_name, cfg, load="0x60000000",
                 stock_bootcmd="run ubootscript", fdt_high="0x4A3E0000",
                 net_settle=5, net_tries=2, retry_sleep=3, netretry="no",
-                use_helper=False, home=None, net_prep=None):
+                use_helper=False, home=None, net_prep=None, net_wait=None):
     """The two variables the netboot needs, as (name, value) pairs.
 
     They are kept apart because the injected shell only lives about a minute and
@@ -2726,7 +2816,13 @@ def netboot_env(pc_ip, ap_ip, itb_name, cfg, load="0x60000000",
     net_prep is a boot-loader command a model needs before its network port
     can be trusted (the C-130's 'ethspeed 5 autoneg').  It runs once, after
     the addresses are set and before the first fetch, whatever the AP was
-    running: nothing is saved by it."""
+    running: nothing is saved by it.
+
+    net_wait is for a boot loader with no 'sleep' whose first fetch comes
+    before its network link is up (the O-105's): a command that takes a while
+    and changes nothing, such as a memory dump to the console.  The first try
+    is made at once; each later one is owrt_wait, the command and then the
+    try.  It needs the helper form."""
     if home:
         stock_bootcmd = "run owrt_home"
     # A boot command that holds double quotes and ${...} of its own (the W-318's)
@@ -2760,8 +2856,13 @@ def netboot_env(pc_ip, ap_ip, itb_name, cfg, load="0x60000000",
         # the link by itself (first fetch 14 s after the restart, 2026-11-15).
         out.append(("owrt_try", "tftpboot %s %s && %s" % (load, itb_name, boot)
                     + ("; sleep %d" % retry_sleep if retry_sleep else "")))
+        if net_wait:
+            out.append(("owrt_wait", "%s; run owrt_try" % net_wait))
+            tries = "run owrt_try; " + "run owrt_wait; " * max(0, net_tries - 1)
+        else:
+            tries = "run owrt_try; " * net_tries
         fetch = (head + ("sleep %d; " % net_settle if net_settle else "")
-                 + "run owrt_try; " * net_tries + "reset")
+                 + tries + "reset")
         out.append(("owrt_nb", fetch))
     else:
         # The proven inline form (C-230/C-260): a settle, net_tries tftpboot calls,
@@ -3432,7 +3533,7 @@ def boot_installer(run, card, pc_ip, ap_ip, itb, kind):
                          mdl.get("retry_sleep", 3), mdl.get("netretry", "no"),
                          mdl.get("net_helper", False),
                          home=own_text if own in ("write", "kept") else None,
-                         net_prep=mdl.get("net_prep"))
+                         net_prep=mdl.get("net_prep"), net_wait=mdl.get("net_wait"))
     if own == "kept":
         writes = [w for w in writes if w[0] != "owrt_home"]     # already there, word for word
     run.netboot_fallback = "openwrt" if own in ("write", "kept") else "arista"
@@ -4487,6 +4588,7 @@ def find_ap(prefix, timeout, want_ram=None, skip=(), mac=None):
 # login is never tried against the rest of somebody's network.
 AP_OUIS = ("30:86:2d", "e4:d1:24", "e0:1c:a7",
            "88:b1:e1",              # the W-118's (the older Mojo block)
+           "30:b6:2d",              # an O-105's (Mojo, 2017)
            "00:11:74")              # a C-130's (the AirTight block, older still)
 
 
