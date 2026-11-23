@@ -1,6 +1,6 @@
 # Status
 
-Generated 2026-11-22 21:17 UTC from the releases, the field updater, the OpenWrt pull
+Generated 2026-11-23 16:10 UTC from the releases, the field updater, the OpenWrt pull
 requests and the port's bug ledger. Every build here is OpenWrt main
 (Linux 6.18) with this port's patches (102 of them in build 159).
 
@@ -8,24 +8,25 @@ requests and the port's bug ledger. Every build here is OpenWrt main
 
 | | Progress | |
 |---|---|---|
-| Models with published images | `██████████` 100% | 7 of 7: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
-| Models with a stable (non-test) build | `██████░░░░` 57% | 4 of 7; the W-118, C-200 and C-130 have testing builds only |
-| Models the field updater can install with no console (code-ready) | `██████████` 100% | 7 of 7: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
-| Field installs proven on real units | `██████████` 100% | 7 of 7: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
-| Device support submitted to OpenWrt | `█████████░` 86% | 6 of 7 pull requests; the C-130 is another author's device |
-| Device support merged into OpenWrt | `░░░░░░░░░░` 0% | 0 of 7; the pull requests are waiting for review |
-| Known issues resolved | `███████░░░` 70% | 151 of 217 in the port's bug ledger ([below](#known-issues)) |
+| Models with published images | `██████████` 100% | 8 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130, O-105 |
+| Models with a stable (non-test) build | `█████░░░░░` 50% | 4 of 8; the W-118, C-200, C-130 and O-105 have testing builds only |
+| Models the field updater can install with no console (code-ready) | `█████████░` 88% | 7 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
+| Field installs proven on real units | `█████████░` 88% | 7 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
+| Device support submitted to OpenWrt | `████████░░` 75% | 6 of 8 pull requests; the C-130 is another author's device |
+| Device support merged into OpenWrt | `░░░░░░░░░░` 0% | 0 of 8; the pull requests are waiting for review |
+| Known issues resolved | `███████░░░` 68% | 151 of 223 in the port's bug ledger ([below](#known-issues)) |
 
 ## Published builds
 
-The build number is the middle of the tag: `v2026.10.17.1-219-g0f0ca5c` is build **219**, the
-219th port commit after release v2026.10.17.1, from port commit `0f0ca5c`.
+The build number is the middle of the tag: `v2026.10.17.1-225-gcb1f325` is build **225**, the
+225th port commit after release v2026.10.17.1, from port commit `cb1f325`.
 From build 57 on, a unit names its build: `grep DISTRIB_DESCRIPTION
 /etc/openwrt_release` ends in `(arista <tag>)`, as does LuCI's firmware version.
 
 | Build | Released (UTC) | Channel | Models | What it brought |
 |---|---|---|---|---|
-| **[219](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-219-g0f0ca5c)** | 2026-11-22 | testing | C-130 | Arista C-130: Qualcomm's newest public firmware on all three radios (512 clients a radio; the scan radio hears every network around), other APs' beacons at the level they are heard, Arista's PoE power policy. |
+| **[225](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-225-gcb1f325)** | 2026-11-23 | testing | O-105 | A new model, the Arista O-105 (IPQ4019; Tomasz Maciej Nowak's O-105E work as the base), O-105 images only: both radios on Qualcomm's firmware, Bluetooth with Arista's chip settings from the AP's own Arista system, the LEDs as Arista's; not yet listed by the installer. |
+| [219](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-219-g0f0ca5c) | 2026-11-22 | testing | C-130 | Arista C-130: Qualcomm's newest public firmware on all three radios (512 clients a radio; the scan radio hears every network around), other APs' beacons at the level they are heard, Arista's PoE power policy. |
 | [212](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-212-gf99029c) | 2026-11-22 | testing, replaced by 219 | C-130 | Arista C-130: the LEDs steady, as Arista's firmware has them (none blinks with traffic), USB storage in the image. |
 | [208](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-208-ga314f1b) | 2026-11-21 | testing, replaced by 219 | C-130 | A new model, the Arista C-130 (IPQ8068; Tomasz Maciej Nowak's OpenWrt device, carried unchanged), C-130 images only: all three radios, airscan and dfs-look on its scan radio, installs over the network. |
 | **[159](https://github.com/WiFiGUY512/openwrt-arista-installer/releases/tag/v2026.10.17.1-159-ge6a703e)** | 2026-11-20 | testing | C-230, C-260, C-360, W-318, W-118, C-200 | Release candidate for the next stable release (two-week soak to 2026-11-29). A spare radio no longer resets the country on every Wi-Fi reload; no kernel warning when reading client rates on the 802.11ax radios. |
@@ -61,18 +62,19 @@ From build 57 on, a unit names its build: `grep DISTRIB_DESCRIPTION
 | W-118 | ipq40xx/generic | none yet | 159 | install and revert, proven | [#26028](https://github.com/openwrt/openwrt/pull/26028) (open) |
 | C-200 | qualcommax/ipq60xx | none yet | 159 | install proven; revert code-ready | [#26410](https://github.com/openwrt/openwrt/pull/26410) (open) |
 | C-130 | ipq806x/generic | none yet | 219 | install proven; revert code-ready | Tomasz Maciej Nowak's device, not yet in OpenWrt |
+| O-105 | ipq40xx/generic | none yet | 225 | images only; the field updater does not list it yet | none yet |
 
 ## The field updater: `arista-field.py`
 
-[`install/arista-field.py`](install/README.md), last changed 2026-11-21 (commit
-`775ae73`), needs no console cable: it checks the AP, saves its whole flash,
+[`install/arista-field.py`](install/README.md), last changed 2026-11-22 (commit
+`c257145`), needs no console cable: it checks the AP, saves its whole flash,
 then installs OpenWrt or puts Arista's firmware back.
 
 - **Stable channel** (default): the newest non-test release that carries the
   AP's model. Today that is build 42; a model with no stable build yet gets
-  its newest testing build instead (the W-118, C-200 and C-130).
+  its newest testing build instead (the W-118, C-200, C-130 and O-105).
 - **Testing channel** (`--channel testing`): pre-releases too. Today that is
-  build 159 (build 219 for the C-130).
+  build 159 (build 225 for the O-105; build 219 for the C-130).
 - It boots the FIT configuration it finds in the image rather than a fixed
   name, so a model whose configuration changed between OpenWrt trees (the
   C-360: `config@1` on 25.12, `config@hk09` on main) boots either.
@@ -86,6 +88,10 @@ then installs OpenWrt or puts Arista's firmware back.
 | W-118 | ✅ | ✅ | ✅ | ✅ | install over the network from Arista's firmware, twice, with the tool taking it back to Arista's firmware between (2026-11-15) |
 | C-200 | ✅ | ✅ | ✅ | ✅ | install over the network from Arista's firmware, twice (2026-11-15); the unit went to Arista's firmware by hand |
 | C-130 | ✅ | ✅ | ✅ | ✅ | install over the network from Arista's firmware, unattended (2026-11-16); the tool's way home not yet run on a unit |
+| O-105 | — | — | — | — | not yet: the updater does not list this model |
+
+The updater does not list the O-105 yet; its images are published for the
+updater's coming support and for updates of an AP already on OpenWrt.
 
 ## Upstream
 
@@ -101,11 +107,11 @@ anything Arista worked around instead of fixing.
 | | Count |
 |---|---:|
 | Fixed in published images | 107 |
-| Fixed in the port, in the next release | 5 |
+| Fixed in the port, in the next release | 6 |
 | Closed: a hardware or firmware limit, by design, or not this port's to fix | 44 |
-| Open: seen on OpenWrt, or being worked on | 52 |
-| Open: suspected only, from Arista's own workarounds and public release notes, not yet seen on OpenWrt | 9 |
-| **Total** | **217** |
+| Open: seen on OpenWrt, or being worked on | 56 |
+| Open: suspected only, from Arista's own workarounds and public release notes, not yet seen on OpenWrt | 10 |
+| **Total** | **223** |
 
 Limits worth knowing before you install:
 
@@ -115,3 +121,4 @@ Limits worth knowing before you install:
 - **QCN9074/QCN9072 radio firmware** (C-360, W-318): every public Qualcomm
   firmware stalls at start-up on these cards, so the port runs Arista's own.
   Reported upstream.
+- **O-105:** the field updater does not install it yet.
