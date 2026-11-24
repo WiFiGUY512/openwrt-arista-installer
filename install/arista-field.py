@@ -2450,8 +2450,12 @@ def verify_stock(pty, card):
         problems.append("NOR partitions add up to %d bytes, expected %d"
                         % (nor_bytes, d["nor_total"]))
     if d.get("env_config_check") and env:
-        cfg, _rc = pty.run("grep -v '^#' /etc/fw_env.config 2>/dev/null | head -1", 20)
-        named = (cfg.split() or [""])[0]
+        # The whole file, parsed here: Arista's has comment lines and a blank
+        # line before its one entry (an O-105 on 8.8.2, 2026-11-23), so the
+        # first line that is not a comment is not the entry.
+        cfg, _rc = pty.run("cat /etc/fw_env.config 2>/dev/null", 20)
+        entries = [l.split() for l in cfg.splitlines() if l.strip() and not l.lstrip().startswith("#")]
+        named = entries[0][0] if entries else ""
         if named != "/dev/" + env["dev"]:
             problems.append("its environment tools point at %s, not at the environment's partition "
                             "(/dev/%s, %s), so a write would land in the wrong place.  Arista's "

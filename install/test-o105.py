@@ -138,6 +138,12 @@ check("the environment tools pointing at the environment's partition: the unit p
       died is None and card["env_dev"]["dev"] == "mtd8" and card["pri"] == "1", died)
 check("in use on this unit: the slot Arista runs from, and UCONFIG", card.get("live") == {"mtd1", "mtd12"},
       card.get("live"))
+pty, card, died = verify("# Configuration file for fw_(printenv/setenv) utility.\n"
+                         "# Up to two entries are valid.\n\n"
+                         "# MTD device name\tDevice offset\tEnv. size\tFlash sector size\n"
+                         "\n/dev/mtd8 0x0000 0x10000 0x10000\n")
+check("Arista's own file, with comments and blank lines before its entry: the entry is found",
+      died is None and card["env_dev"]["dev"] == "mtd8", died)
 pty, card, died = verify("/dev/mtd6 0x0 0x10000 0x10000\n")
 check("the image's own copy of that file (0:DDRPARAMS): stops, says nothing was written and to restart",
       died and "/dev/mtd6" in died and "Nothing was written" in died and "restart the AP" in died, died)

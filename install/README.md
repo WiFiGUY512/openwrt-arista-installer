@@ -81,7 +81,7 @@ page or with `sysupgrade`, or run this tool again and it offers the update.
 | W-318 | yes | installed on a unit twice and switched back to Arista once (Arista 18.0.0); Arista's copy in the second slot is kept |
 | C-200 | yes | installed on a unit twice and switched back to Arista once (Arista 11.0.0); Arista's copy in the second slot is kept |
 | C-130 | yes | installed on a unit (Arista 13.0.2); Arista's copy in the second slot is kept and was seen to start; switching back with the tool has not been run on one yet |
-| O-105 | yes, from its first test build (225) | not yet run by this tool: a unit was installed, switched back to Arista and installed again by hand with the same steps (Arista 8.8.2); Arista's copy in the second slot is kept |
+| O-105 | yes | installed and switched back to Arista on a unit (Arista 8.8.2, build 226); Arista's copy in the second slot is kept |
 
 An AP of any of these models that already runs this OpenWrt port can be
 **updated** with the same tool.
