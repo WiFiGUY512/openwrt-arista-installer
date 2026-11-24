@@ -1,6 +1,6 @@
 # Status
 
-Generated 2026-11-23 20:29 UTC from the releases, the field updater, the OpenWrt pull
+Generated 2026-11-24 20:08 UTC from the releases, the field updater, the OpenWrt pull
 requests and the port's bug ledger. Every build here is OpenWrt main
 (Linux 6.18) with this port's patches (102 of them in build 159).
 
@@ -11,7 +11,7 @@ requests and the port's bug ledger. Every build here is OpenWrt main
 | Models with published images | `██████████` 100% | 8 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130, O-105 |
 | Models with a stable (non-test) build | `█████░░░░░` 50% | 4 of 8; the W-118, C-200, C-130 and O-105 have testing builds only |
 | Models the field updater can install with no console (code-ready) | `██████████` 100% | 8 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130, O-105 |
-| Field installs proven on real units | `█████████░` 88% | 7 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130 |
+| Field installs proven on real units | `██████████` 100% | 8 of 8: C-230, C-260, C-360, W-318, W-118, C-200, C-130, O-105 |
 | Device support submitted to OpenWrt | `████████░░` 75% | 6 of 8 pull requests; the C-130 is another author's device |
 | Device support merged into OpenWrt | `░░░░░░░░░░` 0% | 0 of 8; the pull requests are waiting for review |
 | Known issues resolved | `███████░░░` 68% | 152 of 225 in the port's bug ledger ([below](#known-issues)) |
@@ -63,12 +63,12 @@ From build 57 on, a unit names its build: `grep DISTRIB_DESCRIPTION
 | W-118 | ipq40xx/generic | none yet | 159 | install and revert, proven | [#26028](https://github.com/openwrt/openwrt/pull/26028) (open) |
 | C-200 | qualcommax/ipq60xx | none yet | 159 | install proven; revert code-ready | [#26410](https://github.com/openwrt/openwrt/pull/26410) (open) |
 | C-130 | ipq806x/generic | none yet | 219 | install proven; revert code-ready | Tomasz Maciej Nowak's device, not yet in OpenWrt |
-| O-105 | ipq40xx/generic | none yet | 226 | install and revert, code-ready, not yet run on a unit | none yet |
+| O-105 | ipq40xx/generic | none yet | 226 | install and revert, proven | none yet |
 
 ## The field updater: `arista-field.py`
 
-[`install/arista-field.py`](install/README.md), last changed 2026-11-23 (commit
-`485f676`), needs no console cable: it checks the AP, saves its whole flash,
+[`install/arista-field.py`](install/README.md), last changed 2026-11-24 (commit
+`3de456c`), needs no console cable: it checks the AP, saves its whole flash,
 then installs OpenWrt or puts Arista's firmware back.
 
 - **Stable channel** (default): the newest non-test release that carries the
@@ -89,7 +89,7 @@ then installs OpenWrt or puts Arista's firmware back.
 | W-118 | ✅ | ✅ | ✅ | ✅ | install over the network from Arista's firmware, twice, with the tool taking it back to Arista's firmware between (2026-11-15) |
 | C-200 | ✅ | ✅ | ✅ | ✅ | install over the network from Arista's firmware, twice (2026-11-15); the unit went to Arista's firmware by hand |
 | C-130 | ✅ | ✅ | ✅ | ✅ | install over the network from Arista's firmware, unattended (2026-11-16); the tool's way home not yet run on a unit |
-| O-105 | ✅ | ✅ | ✅ | ✅ | not yet; code-ready |
+| O-105 | ✅ | ✅ | ✅ | ✅ | installed from Arista 8.8.2 with the tool (build 226) and switched back to Arista with it, on a unit, 2026-11-23 |
 
 ## Upstream
 
