@@ -5786,8 +5786,22 @@ def run_main():
         sys.exit(130)
     except Exception as e:                            # noqa: BLE001
         import traceback
+        import http.client
+        import urllib.error
         if getattr(LOG, "f", None):
             LOG.write("\n" + traceback.format_exc())
+        # A download that breaks off or cannot be made is the network's doing,
+        # not the tool's: a release fetch stopped once on "IncompleteRead" and
+        # the same command worked at once (2026-11-23).
+        if isinstance(e, urllib.error.HTTPError):
+            die("GitHub answered %s for a download (%s).\n"
+                "Run the tool again in a few minutes; if it says the same, the file may\n"
+                "have moved: open an issue with the log file named below." % (e.code, e.url))
+        if isinstance(e, (http.client.IncompleteRead, http.client.HTTPException, urllib.error.URLError,
+                          TimeoutError, ConnectionError)):
+            die("a download was interrupted or could not be made (%s).\n"
+                "Check this PC's internet connection and run the tool again; the files\n"
+                "already downloaded are kept, and checked again." % (type(e).__name__,))
         die("something unexpected happened inside the tool (%s: %s).\n"
             "This is a fault in the tool, not something you did.  Please open an issue\n"
             "with the log file named below." % (type(e).__name__, e))

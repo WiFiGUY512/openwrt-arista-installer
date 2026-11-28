@@ -1,7 +1,7 @@
 # OpenWrt for Arista access points
 
-OpenWrt for the Arista C-130, C-200, C-230, C-260, C-360, C-460, W-118 and
-W-318 Wi-Fi access points: the built images, and an installer that puts them
+OpenWrt for the Arista C-130, C-200, C-230, C-260, C-360, C-460, O-105, W-118
+and W-318 Wi-Fi access points: the built images, and an installer that puts them
 on an AP over the network. Not affiliated with Arista Networks. Installing
 replaces part of the AP's firmware, at your own risk; the installer saves the
 AP's own firmware first and can put it back.
@@ -34,9 +34,9 @@ what you will see, what it needs, and what to do if it stops.
 
 | Model | Installs over the network |
 |---|---|
-| C-200, C-230, C-260, C-360 | yes |
-| W-118, W-318 | yes |
-| C-130, C-460 | yes, from its first published build |
+| C-130, C-200, C-230, C-260, C-360 | yes |
+| O-105, W-118, W-318 | yes |
+| C-460 | yes, from its first published build |
 
 ## Update
 
@@ -75,8 +75,8 @@ Each release has, for each model:
 | File | What it is for |
 |---|---|
 | `...-initramfs-uImage.itb` | the installer's temporary system, started from memory |
-| `...-squashfs-factory.ubi` | what a first install writes (the C-230, C-260, C-360, C-200) |
-| `...-squashfs-sysupgrade.bin` | updates, and the first install on the C-460, W-318 and W-118 |
+| `...-squashfs-factory.ubi` | what a first install writes (the C-200, C-230, C-260, C-360, O-105) |
+| `...-squashfs-sysupgrade.bin` | updates, and the first install on the C-130, C-460, W-118 and W-318 |
 | `<model>-install-SHA256SUMS`, `SHA256SUMS`, `index.json` | checksums the installer verifies |
 
 You do not need to download any of them yourself: the installer does.
